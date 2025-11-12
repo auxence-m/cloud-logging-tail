@@ -69,7 +69,7 @@ func printTailLogEntry(out io.Writer, entry *loggingpb.LogEntry) error {
 }
 
 // getEntries fetches and list log entries according to a filter
-func getEntries(out io.Writer, projectID string, filter string, maxLogs int) error {
+func getEntries(out io.Writer, projectID string, filter string, limit int) error {
 	ctx := context.Background()
 	adminClient, err := logadmin.NewClient(ctx, projectID)
 	if err != nil {
@@ -78,7 +78,7 @@ func getEntries(out io.Writer, projectID string, filter string, maxLogs int) err
 	defer adminClient.Close()
 
 	options := []logadmin.EntriesOption{logadmin.Filter(filter)}
-	if maxLogs > 0 {
+	if limit > 0 {
 		options = append(options, logadmin.NewestFirst())
 	}
 
@@ -86,7 +86,7 @@ func getEntries(out io.Writer, projectID string, filter string, maxLogs int) err
 
 	counter := 0
 	for {
-		if maxLogs > 0 && counter >= maxLogs {
+		if limit > 0 && counter >= limit {
 			break
 		}
 
@@ -111,7 +111,7 @@ func getEntries(out io.Writer, projectID string, filter string, maxLogs int) err
 }
 
 // tailLogs fetches and tail live log entries according to a filter
-func tailLogs(out io.Writer, projectID string, filter string, maxLogs int) error {
+func tailLogs(out io.Writer, projectID string, filter string, limit int) error {
 	// Create a cancellable context
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -177,7 +177,7 @@ func tailLogs(out io.Writer, projectID string, filter string, maxLogs int) error
 		}
 
 		counter += len(resp.GetEntries())
-		if maxLogs > 0 && counter >= maxLogs {
+		if limit > 0 && counter >= limit {
 			break
 		}
 

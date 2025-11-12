@@ -10,24 +10,26 @@ import (
 )
 
 type Filter struct {
+	LogName      string
+	ResourceType string
 	Severity     string
 	Since        time.Duration
 	SinceTime    time.Time
-	ResourceType string
-	LogName      string
 }
 
-type Options struct {
-	Follow bool
-	Tail   int
-	Output string
-}
-
-func formatFilter(filter *Filter) string {
+func BuildFilterString(filter *Filter) string {
 	var options []string
 
 	if filter == nil {
 		return ""
+	}
+
+	if filter.LogName != "" {
+		options = append(options, fmt.Sprintf(`logName = "%s"`, filter.LogName))
+	}
+
+	if filter.ResourceType != "" {
+		options = append(options, fmt.Sprintf(`resource.type = "%s"`, filter.ResourceType))
 	}
 
 	if filter.Severity != "" {
@@ -41,14 +43,6 @@ func formatFilter(filter *Filter) string {
 
 	if !filter.SinceTime.IsZero() {
 		options = append(options, fmt.Sprintf(`timestamp >= "%s"`, filter.SinceTime.Format(time.RFC3339)))
-	}
-
-	if filter.ResourceType != "" {
-		options = append(options, fmt.Sprintf(`resource.type = "%s"`, filter.ResourceType))
-	}
-
-	if filter.LogName != "" {
-		options = append(options, fmt.Sprintf(`logName = "%s"`, filter.LogName))
 	}
 
 	return strings.Join(options, " AND ")
