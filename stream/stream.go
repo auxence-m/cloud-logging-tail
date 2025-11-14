@@ -68,8 +68,8 @@ func printTailLogEntry(out io.Writer, entry *loggingpb.LogEntry) error {
 	return nil
 }
 
-// getEntries fetches and list log entries according to a filter
-func getEntries(out io.Writer, projectID string, filter string, limit int) error {
+// GetEntries fetches and list log entries according to a filter
+func GetEntries(out io.Writer, projectID string, filter string, limit int) error {
 	ctx := context.Background()
 	adminClient, err := logadmin.NewClient(ctx, projectID)
 	if err != nil {
@@ -110,8 +110,8 @@ func getEntries(out io.Writer, projectID string, filter string, limit int) error
 	return nil
 }
 
-// tailLogs fetches and tail live log entries according to a filter
-func tailLogs(out io.Writer, projectID string, filter string, limit int) error {
+// TailLogs fetches and tail live log entries according to a filter
+func TailLogs(out io.Writer, projectID string, filter string, limit int) error {
 	// Create a cancellable context
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

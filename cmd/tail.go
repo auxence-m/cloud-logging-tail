@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -9,16 +10,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	logName      string
-	resourceType string
-	severity     string
-	since        string
-	sinceTime    string
-	follow       bool
-	limit        int
-	output       string
-)
+type Options struct {
+	LogName      string
+	ResourceType string
+	Severity     string
+	Since        string
+	SinceTime    string
+	Follow       bool
+	Limit        int
+	Output       string
+}
 
 // tailCmd represents the tail command
 var tailCmd = &cobra.Command{
@@ -31,59 +32,27 @@ var tailCmd = &cobra.Command{
 }
 
 func tailRun(cmd *cobra.Command, args []string) error {
-	var (
-		parseDuration time.Duration
-		parseTime     time.Time
-		parseSeverity string
-	)
-
-	// Trim flags
-	trimmedLogName := strings.TrimSpace(logName)
-	trimmedResourceType := strings.TrimSpace(resourceType)
-	trimmedSeverity := strings.TrimSpace(severity)
-	trimmedSince := strings.TrimSpace(since)
-	trimmedSinceTime := strings.TrimSpace(sinceTime)
-
-	// Validate severity flag
-	if trimmedSeverity != "" {
-		s, err := validateSeverityFlag(trimmedSeverity)
-		if err != nil {
-			return err
-		}
-		parseSeverity = s
+	if len(args) == 0 {
+		return fmt.Errorf("missing required argument: projectID")
 	}
 
-	// Validate since flag
-	if trimmedSince != "" {
-		d, err := validateSinceFlag(trimmedSince)
-		if err != nil {
-			return err
-		}
-		parseDuration = d
-	}
+	flags := cmd.Flags()
 
-	// Validate sinceTime flag
-	if trimmedSinceTime != "" {
-		t, err := validateSinceTimeFlag(trimmedSinceTime)
-		if err != nil {
-			return err
-		}
-		parseTime = t
-	}
+	options := Options{}
 
-	filter := stream.Filter{
-		LogName:      trimmedLogName,
-		ResourceType: trimmedResourceType,
-		Severity:     parseSeverity,
-		Since:        parseDuration,
-		SinceTime:    parseTime,
-	}
+	// Read flags
+	options.LogName, _ = flags.GetString("log-name")
+	options.ResourceType, _ = flags.GetString("resource-type")
+	options.Severity, _ = flags.GetString("severity")
+	options.Since, _ = flags.GetString("since")
+	options.SinceTime, _ = flags.GetString("since-time")
+	options.Follow, _ = flags.GetBool("follow")
+	options.Limit, _ = flags.GetInt("limit")
+	options.Output, _ = flags.GetString("output")
 
-	filterStr := stream.BuildFilterString(&filter)
+	projectID := args[0]
 
-	fmt.Println(filterStr)
-
-	return nil
+	return fetchAndTailLogs(options, projectID)
 }
 
 // validateSeverityFlag ensures the --severity flag has a valid value
@@ -130,18 +99,102 @@ func validateSinceTimeFlag(sinceTime string) (time.Time, error) {
 	return parsedTime, nil
 }
 
+func fetchAndTailLogs(options Options, projectID string) error {
+	var (
+		parseDuration time.Duration
+		parseTime     time.Time
+		parseSeverity string
+		err           error
+	)
+
+	// Trim options
+	logName := strings.TrimSpace(options.LogName)
+	resourceType := strings.TrimSpace(options.ResourceType)
+	severity := strings.TrimSpace(options.Severity)
+	since := strings.TrimSpace(options.Since)
+	sinceTime := strings.TrimSpace(options.SinceTime)
+	output := strings.TrimSpace(options.Output)
+
+	// Validate severity flag
+	if severity != "" {
+		parseSeverity, err = validateSeverityFlag(severity)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Validate since flag
+	if since != "" {
+		parseDuration, err = validateSinceFlag(since)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Validate sinceTime flag
+	if sinceTime != "" {
+		parseTime, err = validateSinceTimeFlag(sinceTime)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Validate limit flag
+	if options.Limit < 0 {
+		return fmt.Errorf("invalid value for --limit flag: %d. (must be positive)", options.Limit)
+
+	}
+
+	// Build filter object
+	filter := stream.Filter{
+		LogName:      logName,
+		ResourceType: resourceType,
+		Severity:     parseSeverity,
+		Since:        parseDuration,
+		SinceTime:    parseTime,
+	}
+	filterStr := stream.BuildFilterString(&filter)
+
+	// Set proper output
+	out := os.Stdout
+	if output != "" {
+		file, err := os.OpenFile(output, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return fmt.Errorf("could not open output file: \n%w", err)
+		}
+		out = file
+		defer file.Close()
+	}
+
+	// Fetch logs
+	err = stream.GetEntries(out, projectID, filterStr, options.Limit)
+	if err != nil {
+		return fmt.Errorf("error fetching log entries %w", err)
+	}
+
+	// Tail logs if --follow is set
+	if options.Follow {
+		err := stream.TailLogs(out, projectID, filterStr, options.Limit)
+		if err != nil {
+			return fmt.Errorf("error tailing log entries %w", err)
+		}
+	}
+
+	return nil
+}
+
 func init() {
 	rootCmd.AddCommand(tailCmd)
 
-	tailCmd.Flags().StringVar(&logName, "logName", "", "Retrives the logs with the specified logName")
-	tailCmd.Flags().StringVar(&resourceType, "resource-type", "", "Retrives the logs with the specified resource-type")
-	tailCmd.Flags().StringVar(&severity, "severity", "", "Retrives the logs with the specified severity level. (e.g., INFO, WARNING, ERROR)")
-	tailCmd.Flags().StringVar(&since, "since", "", "Retrieves logs newer than a specified relative duration (e.g., 1h, 30m, 20s, 1h15m30s). Only one of --since-time or --since may be used")
-	tailCmd.Flags().StringVar(&sinceTime, "since-time", "", "Retrieves logs newer than a specific timestamp in RFC3339 format (e.g., YYYY-MM-DDTHH:MM:SSZ). Only one of --since-time or --since may be used")
+	tailCmd.Flags().String("log-name", "", "Retrives the logs with the specified log name")
+	tailCmd.Flags().String("resource-type", "", "Retrives the logs with the specified resource type")
+	tailCmd.Flags().String("severity", "", "Retrives the logs with the specified severity level. (e.g., INFO, WARNING, ERROR)")
+	tailCmd.Flags().String("since", "", "Retrieves logs newer than a specified relative duration (e.g., 1h, 30m, 20s, 1h15m30s). Only one of --since-time or --since may be used")
+	tailCmd.Flags().String("since-time", "", "Retrieves logs newer than a specific timestamp in RFC3339 format (e.g., YYYY-MM-DDTHH:MM:SSZ). Only one of --since-time or --since may be used")
 
 	tailCmd.MarkFlagsMutuallyExclusive("since", "since-time")
 
-	tailCmd.Flags().BoolVar(&follow, "follow", false, "Specify if the logs should be streamed in real-time as they are generated")
-	tailCmd.Flags().IntVar(&limit, "limit", -1, "Number of recent logs to display. Defaults to -1 with no effect, showing all logs")
-	tailCmd.Flags().StringVar(&output, "output", "", "Specify the output file to write the logs to")
+	tailCmd.Flags().Bool("follow", false, "Specify if the logs should be streamed in real-time as they are generated")
+	tailCmd.Flags().Int("limit", -1, "Number of recent logs to display. Defaults to -1 with no effect, showing all logs")
+	tailCmd.Flags().String("output", "", "Specify the output file to write the logs to")
 }
