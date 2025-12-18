@@ -30,7 +30,7 @@ func printLogEntry(out io.Writer, entry *logging.Entry) error {
 		}
 		_, err := fmt.Fprintf(out, "[%v] [%s] (%s) %s %s %d %dms\n", timestamp, severity, resourceType, req.Request.Method, reqUrl, req.Status, req.Latency.Milliseconds())
 		if err != nil {
-			return fmt.Errorf("failed to write to output: %w", err)
+			return fmt.Errorf("failed to write to output: \n%w", err)
 		}
 	}
 
@@ -38,7 +38,7 @@ func printLogEntry(out io.Writer, entry *logging.Entry) error {
 		trimmed := strings.TrimSpace(payload)
 		_, err := fmt.Fprintf(out, "[%v] [%s] (%s) %s\n", timestamp, severity, resourceType, trimmed)
 		if err != nil {
-			return fmt.Errorf("failed to write to output: %w", err)
+			return fmt.Errorf("failed to write to output: \n%w", err)
 		}
 	}
 
@@ -53,7 +53,7 @@ func printTailLogEntry(out io.Writer, entry *loggingpb.LogEntry) error {
 	if req := entry.HttpRequest; req != nil {
 		_, err := fmt.Fprintf(out, "[%v] [%s] (%s) %s %s %d %dms\n", timestamp, severity, resourceType, req.RequestMethod, req.RequestUrl, req.Status, req.Latency.AsDuration().Milliseconds())
 		if err != nil {
-			return fmt.Errorf("failed to write to output: %w", err)
+			return fmt.Errorf("failed to write to output: \n%w", err)
 		}
 	}
 
@@ -61,7 +61,7 @@ func printTailLogEntry(out io.Writer, entry *loggingpb.LogEntry) error {
 		trimmed := strings.TrimSpace(payload)
 		_, err := fmt.Fprintf(out, "[%v] [%s] (%s) %s\n", timestamp, severity, resourceType, trimmed)
 		if err != nil {
-			return fmt.Errorf("failed to write to output: %w", err)
+			return fmt.Errorf("failed to write to output: \n%w", err)
 		}
 	}
 
@@ -73,7 +73,7 @@ func GetEntries(out io.Writer, projectID string, filter string, limit int) error
 	ctx := context.Background()
 	adminClient, err := logadmin.NewClient(ctx, projectID)
 	if err != nil {
-		return fmt.Errorf("failed to create logadmin client: %w", err)
+		return fmt.Errorf("failed to create logadmin client: \n%w", err)
 	}
 	defer adminClient.Close()
 
@@ -129,13 +129,13 @@ func TailLogs(out io.Writer, projectID string, filter string, limit int) error {
 
 	client, err := loggingv2.NewClient(ctx)
 	if err != nil {
-		return fmt.Errorf("NewClient error: %w", err)
+		return fmt.Errorf("NewClient error: \n%w", err)
 	}
 	defer client.Close()
 
 	stream, err := client.TailLogEntries(ctx)
 	if err != nil {
-		return fmt.Errorf("TailLogEntries error: %w", err)
+		return fmt.Errorf("TailLogEntries error: \n%w", err)
 	}
 	defer stream.CloseSend()
 
@@ -145,7 +145,7 @@ func TailLogs(out io.Writer, projectID string, filter string, limit int) error {
 	}
 
 	if err := stream.Send(req); err != nil {
-		return fmt.Errorf("stream.Send error: %w", err)
+		return fmt.Errorf("stream.Send error: \n%w", err)
 	}
 
 	counter := 0
@@ -161,7 +161,7 @@ func TailLogs(out io.Writer, projectID string, filter string, limit int) error {
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("stream.Recv error: %w", err)
+			return fmt.Errorf("stream.Recv error: \n%w", err)
 		}
 
 		entries := resp.GetEntries()

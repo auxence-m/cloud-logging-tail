@@ -24,11 +24,24 @@ type Options struct {
 // tailCmd represents the tail command
 var tailCmd = &cobra.Command{
 	Use:          "tail [projectID]",
+	Args:         cobra.ExactArgs(1),
+	SilenceUsage: true,
 	Short:        "Stream Google Cloud Logging entries directly into the terminal in real time",
 	Long:         `The tail command will fetch and stream all Google Cloud Logging entries from the last 24 hours by default unless specified otherwise with the available flags`,
-	SilenceUsage: true,
-	Args:         cobra.ExactArgs(1),
-	RunE:         tailRun,
+	Example: `
+# List logs from the "cloudbuild" log within the last hour 
+cloudtail tail projectID --log-name=projects/projectID/logs/cloudbuild --since=1h
+
+# List the 50 most recent logs associated with the "cloud_run_revision" label
+cloudtail tail projectID --resource-type=cloud_run_revision --limit=50
+
+# List all the logs with a severity of "WARNING" starting from July 31, 2025, at 06:00:00 UTC
+cloudtail tail projectID --severity=WARNING --since-time=2025-07-30T06:00:00Z
+
+# Begin streaming the logs from the "log-name" and save them in the "output.log" file
+cloudtail tail projectID --log-name=projects/projectID/logs/log-name --follow --output=output.log
+`,
+	RunE: tailRun,
 }
 
 func tailRun(cmd *cobra.Command, args []string) error {
@@ -139,8 +152,8 @@ func fetchAndTailLogs(options Options, projectID string) error {
 		}
 	}
 
-	// Validate limit flag
-	if options.Limit < 0 {
+	// Validate limit flag, make sure default value (-1) is ingnored
+	if options.Limit != -1 && options.Limit < 0 {
 		return fmt.Errorf("invalid value for --limit flag: %d. (must be positive)", options.Limit)
 
 	}
@@ -154,6 +167,7 @@ func fetchAndTailLogs(options Options, projectID string) error {
 		SinceTime:    parseTime,
 	}
 	filterStr := stream.BuildFilterString(&filter)
+	//fmt.Println(filterStr)
 
 	// Set proper output
 	out := os.Stdout
@@ -169,14 +183,14 @@ func fetchAndTailLogs(options Options, projectID string) error {
 	// Fetch logs
 	err = stream.GetEntries(out, projectID, filterStr, options.Limit)
 	if err != nil {
-		return fmt.Errorf("error fetching log entries %w", err)
+		return fmt.Errorf("error fetching log entries \n%w", err)
 	}
 
 	// Tail logs if --follow is set
 	if options.Follow {
 		err = stream.TailLogs(out, projectID, filterStr, options.Limit)
 		if err != nil {
-			return fmt.Errorf("error tailing log entries %w", err)
+			return fmt.Errorf("error tailing log entries \n%w", err)
 		}
 	}
 
