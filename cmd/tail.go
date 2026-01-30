@@ -78,11 +78,15 @@ func validateSeverityFlag(severity string) (string, error) {
 	upper := strings.ToUpper(severity)
 
 	validSeverities := map[string]struct{}{
-		"INFO":    {},
-		"DEBUG":   {},
-		"WARNING": {},
-		"NOTICE":  {},
-		"ERROR":   {},
+		"DEFAULT":   {},
+		"DEBUG":     {},
+		"INFO":      {},
+		"NOTICE":    {},
+		"WARNING":   {},
+		"ERROR":     {},
+		"CRITICAL":  {},
+		"ALERT":     {},
+		"EMERGENCY": {},
 	}
 
 	_, found := validSeverities[upper]
@@ -207,16 +211,16 @@ func fetchAndTailLogs(options Options, projectID string) error {
 func init() {
 	rootCmd.AddCommand(tailCmd)
 
-	tailCmd.Flags().String("log-name", "", "Retrives the logs with the specified log name")
-	tailCmd.Flags().String("resource-type", "", "Retrives the logs with the specified resource type")
-	tailCmd.Flags().String("severity", "", "Retrives the logs with the specified severity level. (e.g., INFO, WARNING, ERROR)")
-	tailCmd.Flags().String("since", "", "Retrieves logs newer than a specified relative duration (e.g., 1h, 30m, 20s, 1h15m30s). Only one of --since-time or --since may be used")
-	tailCmd.Flags().String("since-time", "", "Retrieves logs newer than a specific timestamp in RFC3339 format (e.g., YYYY-MM-DDTHH:MM:SSZ). Only one of --since-time or --since may be used")
-	tailCmd.Flags().String("filter", "", `Retrieves logs with the specified filter. This flag allows the use of raw filter for more customized or complex querries (e.g., severity >= "ERROR" AND severity <= "EMERGENCY" AND resource.type="gce_instance" AND timestamp >= "2025-12-18T12:00:00Z")`)
+	tailCmd.Flags().String("log-name", "", "Filter logs by log name")
+	tailCmd.Flags().String("resource-type", "", "Filter logs by resource type")
+	tailCmd.Flags().String("severity", "", "Filter logs by severity level (DEFAULT, DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY)")
+	tailCmd.Flags().String("since", "", "Show logs newer than a relative duration (e.g. 1h, 30m, 20s, 1h15m30s). Only one of since-time / since may be used")
+	tailCmd.Flags().String("since-time", "", "Show logs newer than an RFC3339 timestamp (e.g. 2026-01-13T12:30:00Z). Only one of since-time / since may be used")
+	tailCmd.Flags().String("filter", "", `Apply a raw filter expression for advanced queries (e.g. severity>="WARNING" AND severity<="ERROR" AND timestamp>="2026-05-18T12:00:00Z")`)
 
 	tailCmd.MarkFlagsMutuallyExclusive("since", "since-time")
 
-	tailCmd.Flags().Bool("follow", false, "Specify if the logs should be streamed in real-time as they are generated")
-	tailCmd.Flags().Int("limit", -1, "Number of recent logs to display. Defaults to -1 with no effect, showing all logs")
-	tailCmd.Flags().String("output", "", "Specify the output file to write the logs to")
+	tailCmd.Flags().Bool("follow", false, "Stream logs in real time")
+	tailCmd.Flags().Int("limit", -1, "Maximum number of logs to display (defaults to -1, showing all logs).")
+	tailCmd.Flags().String("output", "", "Write logs to the specified file (defaults to stdout).")
 }

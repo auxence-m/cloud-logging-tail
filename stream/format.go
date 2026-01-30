@@ -55,11 +55,15 @@ func BuildFilterString(filter *Filter) string {
 
 func formatSeverity(severity string) string {
 	colors := map[string]string{
-		"INFO":    "\033[34m", // Blue
-		"DEBUG":   "\033[34m", // Blue
-		"WARNING": "\033[33m", // Yellow
-		"NOTICE":  "\033[34m", // Blue
-		"ERROR":   "\033[31m", // Red
+		"DEFAULT":   "\033[34m", // Blue
+		"DEBUG":     "\033[34m", // Blue
+		"INFO":      "\033[34m", // Blue
+		"NOTICE":    "\033[34m", // Blue
+		"WARNING":   "\033[33m", // Yellow
+		"ERROR":     "\033[31m", // Red
+		"CRITICAL":  "\033[31m", // Red
+		"ALERT":     "\033[31m", // Red
+		"EMERGENCY": "\033[31m", // Red
 	}
 
 	upper := strings.ToUpper(severity)
