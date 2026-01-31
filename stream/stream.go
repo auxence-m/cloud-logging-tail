@@ -16,6 +16,8 @@ import (
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 	"cloud.google.com/go/logging/logadmin"
 	"google.golang.org/api/iterator"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func printLogEntry(out io.Writer, entry *logging.Entry) error {
@@ -91,10 +93,13 @@ func GetEntries(out io.Writer, projectID string, filter string, limit int) error
 		}
 
 		entry, err := iter.Next()
-		if errors.Is(err, iterator.Done) {
-			break
-		}
 		if err != nil {
+			// No more log entries
+			if errors.Is(err, iterator.Done) {
+				break
+			}
+
+			// Unexpected error
 			return err
 		}
 
@@ -150,17 +155,20 @@ func TailLogs(out io.Writer, projectID string, filter string, limit int) error {
 
 	counter := 0
 	for {
-		// Respect context cancellation
-		if ctx.Err() != nil {
-			fmt.Fprintln(out, "Streaming stopped successfully")
-			return nil
-		}
-
 		resp, err := stream.Recv()
-		if errors.Is(err, io.EOF) {
-			break
-		}
 		if err != nil {
+			// Respect context cancellation
+			if status.Code(err) == codes.Canceled {
+				fmt.Fprintln(out, "Streaming stopped successfully")
+				break
+			}
+
+			// Stream is closed normally
+			if errors.Is(err, io.EOF) {
+				break
+			}
+
+			// Unexpected error
 			return fmt.Errorf("stream.Recv error: \n%w", err)
 		}
 
