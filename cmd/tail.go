@@ -27,8 +27,8 @@ var tailCmd = &cobra.Command{
 	Use:          "tail [projectID]",
 	Args:         cobra.ExactArgs(1),
 	SilenceUsage: true,
-	Short:        "Stream Google Cloud Logging entries directly into the terminal in real time",
-	Long:         `The tail command will fetch and stream all Google Cloud Logging entries from the last 24 hours by default unless specified otherwise with the available flags`,
+	Short:        "Display and stream Google Cloud Logging entries matching the specified filters",
+	Long:         `The tail command will fetch and list all Google Cloud Logging entries from the last 24 hours by default unless specified otherwise with the available flags`,
 	Example: `
 The following examples demonstrate common usage patterns for tail.
 
@@ -46,6 +46,9 @@ cloudtail tail projectID --limit=100
 
 # Display logs from the last 30 minutes
 cloudtail tail projectID --since=30m
+
+# Display logs from the last hour and continue streaming
+cloudtail tail projectID -since=1h --follow
 
 # Display logs newer than a specific point in time
 cloudtail tail projectID --since-time=2026-02-12T12:30:00Z
@@ -88,6 +91,13 @@ cloudtail tail projectID \
 	--since-time=2026-01-13T12:30:00Z \
 	--limit=200 \
 	--output=incident.log
+
+Notes:
+  - To include historical logs, use --since or --since-time. 
+    A timestamp in --filter alone does not include past entries.
+  - --follow streams logs in real-time. Without --since or --since-time, 
+    only new entries from the time of execution are shown.
+  - --limit applies only to the initial historical fetch. Streaming ignores it.
 `,
 	RunE: tailRun,
 }
@@ -241,17 +251,22 @@ func fetchAndTailLogs(options Options, projectID string) error {
 		os.Stdout = file
 	}
 
-	// Fetch logs
-	err = stream.GetEntries(os.Stdout, projectID, filterStr, options.Limit)
-	if err != nil {
-		return fmt.Errorf("error fetching log entries \n%w", err)
+	// disable limit when streaming logs
+	if options.Follow {
+		options.Limit = -1
 	}
 
-	// Tail logs if --follow is set
+	// Fetch historical logs if requested
+	if filter.Since != 0 || !filter.SinceTime.IsZero() || !options.Follow {
+		if err := stream.GetEntries(os.Stdout, projectID, filterStr, options.Limit); err != nil {
+			return fmt.Errorf("error fetching logs: \n%w", err)
+		}
+	}
+
+	// Stream logs if --follow is set
 	if options.Follow {
-		err = stream.TailLogs(os.Stdout, projectID, filterStr, options.Limit)
-		if err != nil {
-			return fmt.Errorf("error tailing log entries \n%w", err)
+		if err := stream.TailLogs(os.Stdout, projectID, filterStr, options.Limit); err != nil {
+			return fmt.Errorf("error tailing logs: \n%w", err)
 		}
 	}
 
@@ -270,7 +285,7 @@ func init() {
 
 	tailCmd.MarkFlagsMutuallyExclusive("since", "since-time")
 
-	tailCmd.Flags().Bool("follow", false, "Stream logs in real time")
+	tailCmd.Flags().Bool("follow", false, "Stream new log entries as they are generated")
 	tailCmd.Flags().Int("limit", -1, "Maximum number of logs to display (defaults to -1, showing all logs).")
 	tailCmd.Flags().String("output", "", "Write logs to the specified file (defaults to stdout).")
 }
