@@ -225,26 +225,31 @@ func fetchAndTailLogs(options Options, projectID string) error {
 	//fmt.Println(filterStr)
 
 	// Set proper output
-	out := os.Stdout
+	terminalOut := os.Stdout
 	if output != "" {
-		file, err := os.OpenFile(output, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		file, err := os.Create(output)
 		if err != nil {
 			return fmt.Errorf("could not open output file: \n%w", err)
 		}
-		defer file.Close()
 
-		out = file
+		defer func() {
+			os.Stdout = terminalOut // Restore original stdout before exiting the program
+			file.Close()            // Close file before exiting the program
+		}()
+
+		fmt.Println("Using output file:", output)
+		os.Stdout = file
 	}
 
 	// Fetch logs
-	err = stream.GetEntries(out, projectID, filterStr, options.Limit)
+	err = stream.GetEntries(os.Stdout, projectID, filterStr, options.Limit)
 	if err != nil {
 		return fmt.Errorf("error fetching log entries \n%w", err)
 	}
 
 	// Tail logs if --follow is set
 	if options.Follow {
-		err = stream.TailLogs(out, projectID, filterStr, options.Limit)
+		err = stream.TailLogs(os.Stdout, projectID, filterStr, options.Limit)
 		if err != nil {
 			return fmt.Errorf("error tailing log entries \n%w", err)
 		}
