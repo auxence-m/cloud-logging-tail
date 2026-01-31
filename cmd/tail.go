@@ -285,7 +285,7 @@ func init() {
 
 	tailCmd.MarkFlagsMutuallyExclusive("since", "since-time")
 
-	tailCmd.Flags().Bool("follow", false, "Stream new log entries as they are generated")
-	tailCmd.Flags().Int("limit", -1, "Maximum number of logs to display (defaults to -1, showing all logs).")
-	tailCmd.Flags().String("output", "", "Write logs to the specified file (defaults to stdout).")
+	tailCmd.Flags().BoolP("follow", "f", false, "Stream new log entries as they are generated")
+	tailCmd.Flags().IntP("limit", "n", -1, "Maximum number of logs to display (defaults to -1, showing all logs).")
+	tailCmd.Flags().StringP("output", "o", "", "Write logs to the specified file (defaults to stdout).")
 }
