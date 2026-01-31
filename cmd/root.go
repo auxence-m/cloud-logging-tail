@@ -17,12 +17,12 @@ func defaultColorScheme(c lipgloss.LightDarkFunc) fang.ColorScheme {
 		Base:           base,
 		Title:          lipgloss.BrightMagenta,
 		Description:    base, // flag and command descriptions
-		Program:        c(lipgloss.Blue, lipgloss.BrightBlue),
+		Program:        lipgloss.Color("#00005f"),
 		DimmedArgument: c(lipgloss.BrightWhite, lipgloss.BrightBlack),
 		Comment:        c(lipgloss.BrightWhite, lipgloss.BrightBlack),
 		Flag:           lipgloss.Green,
 		FlagDefault:    c(lipgloss.BrightWhite, lipgloss.BrightBlack), // flag default values in descriptions
-		Command:        c(lipgloss.Red, lipgloss.BrightRed),
+		Command:        lipgloss.Color("#5f0000"),
 		QuotedString:   base,
 		Argument:       base,
 		ErrorHeader:    [2]color.Color{lipgloss.Black, lipgloss.Red},
