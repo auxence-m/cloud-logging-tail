@@ -56,10 +56,6 @@ func Execute() {
 	}
 }
 
-func Root() *cobra.Command {
-	return rootCmd
-}
-
 func init() {
 	rootCmd.Flags().BoolP("toggle", "t", false, "help message for toggle")
 }
